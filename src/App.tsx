@@ -1,4 +1,5 @@
 import { Header } from './components/Header'
+import { fx } from './systems/fx'
 import { CorruptorStage } from './game/CorruptorStage'
 import { EntityLayer } from './game/EntityLayer'
 import { FloorBand } from './components/FloorBand'
@@ -10,8 +11,12 @@ export default function App() {
     <div className="mx-auto flex h-full max-w-md flex-col gap-2 p-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
       <Header />
       {/* Play area: coins fly from the stage into the floor band, so the
-          pooled EntityLayer overlays both in one coordinate space. */}
-      <div className="relative flex min-h-0 flex-1 flex-col gap-2">
+          pooled EntityLayer overlays both in one coordinate space. Also the
+          screen-shake target — entities shake with it coherently. */}
+      <div
+        ref={(el) => fx.attachShake(el)}
+        className="relative flex min-h-0 flex-1 flex-col gap-2 will-change-transform"
+      >
         <CorruptorStage />
         <FloorBand />
         <EntityLayer />

@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { coinSim } from '../systems/coinSim'
-import { CITIZEN_EMOJIS, MAX_COINS } from '../data/tuning'
+import { fx } from '../systems/fx'
+import { CITIZEN_EMOJIS, MAX_COINS, MAX_DAMAGE_NUMBERS } from '../data/tuning'
 
 const COIN_SLOTS = Array.from({ length: MAX_COINS }, (_, i) => i)
+const DMG_SLOTS = Array.from({ length: MAX_DAMAGE_NUMBERS }, (_, i) => i)
 
 /**
  * Pooled entity DOM. Nodes mount exactly once; the sim moves them
@@ -13,7 +15,11 @@ export function EntityLayer() {
 
   useEffect(() => {
     coinSim.attachLayer(layerRef.current)
-    return () => coinSim.attachLayer(null)
+    fx.attachLayer(layerRef.current)
+    return () => {
+      coinSim.attachLayer(null)
+      fx.attachLayer(null)
+    }
   }, [])
 
   return (
@@ -39,6 +45,15 @@ export function EntityLayer() {
         >
           {emoji}
         </div>
+      ))}
+      {DMG_SLOTS.map((i) => (
+        <div
+          key={`dmg-${i}`}
+          data-dmg=""
+          ref={(el) => fx.registerDamageEl(i, el)}
+          className="absolute top-0 left-0 text-xl font-black text-red-400 will-change-transform tabular-nums"
+          style={{ opacity: 0 }}
+        />
       ))}
     </div>
   )

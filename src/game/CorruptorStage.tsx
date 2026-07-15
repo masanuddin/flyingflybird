@@ -3,11 +3,20 @@ import { HpBar } from '../components/HpBar'
 import { selectCorruptor, useGameStore } from '../store/gameStore'
 import { COINS_PER_TAP, faceForHp } from '../data/tuning'
 import { coinSim } from '../systems/coinSim'
+import { fx } from '../systems/fx'
+import { sound } from '../systems/sound'
 import { formatRupiah } from '../utils/format'
 
 function handleTap() {
   const dealt = useGameStore.getState().tap()
-  if (dealt > 0) coinSim.spawnCoins(COINS_PER_TAP)
+  if (dealt <= 0) return
+  sound.tap()
+  coinSim.spawnCoins(COINS_PER_TAP)
+  fx.hit(dealt)
+  if (useGameStore.getState().phase === 'subdued') {
+    sound.subdue()
+    fx.subdue()
+  }
 }
 
 export function CorruptorStage() {
@@ -36,20 +45,34 @@ export function CorruptorStage() {
       <button
         type="button"
         onPointerDown={handleTap}
-        className="flex flex-1 items-center justify-center rounded-lg bg-zinc-800/60 transition-transform duration-75 active:scale-95"
+        className="relative flex flex-1 items-center justify-center rounded-lg bg-zinc-800/60 transition-transform duration-75 active:scale-95"
         aria-label={`Tindak ${corruptor.name}`}
       >
         {/* Fixed sprite slot — final art at M8 swaps in without layout rework.
             Also the coin spawn anchor (chest position). */}
         <motion.div
           key={corruptor.id}
-          ref={(el) => coinSim.attachAnchor(el)}
+          ref={(el) => {
+            coinSim.attachAnchor(el)
+            fx.attachAnchor(el)
+          }}
           initial={{ opacity: 0, scale: 0.7 }}
           animate={{ opacity: 1, scale: 1 }}
           className="flex h-40 w-40 items-center justify-center"
         >
-          <span className="text-8xl leading-none">{face}</span>
+          <span
+            ref={(el) => fx.attachPunch(el)}
+            className="inline-block text-8xl leading-none will-change-transform"
+          >
+            {face}
+          </span>
         </motion.div>
+        {/* Hit flash — opacity-only, sits above the sprite */}
+        <div
+          ref={(el) => fx.attachFlash(el)}
+          className="pointer-events-none absolute inset-0 rounded-lg bg-white"
+          style={{ opacity: 0 }}
+        />
       </button>
 
       {subdued && (

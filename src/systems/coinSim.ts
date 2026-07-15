@@ -1,4 +1,5 @@
 import { useGameStore } from '../store/gameStore'
+import { sound } from './sound'
 import {
   CITIZEN_SPEED,
   COIN_GRAVITY,
@@ -156,9 +157,16 @@ function moveToward(c: Citizen, tx: number, ty: number, step: number): boolean {
 function collect(citizen: Citizen, coin: Coin) {
   // The ONLY call site that credits uangRakyat (via store.collectCoin).
   useGameStore.getState().collectCoin(activeCoinCount())
+  sound.collect()
   coin.active = false
   coin.claimed = false
-  if (coin.el) coin.el.style.opacity = '0'
+  if (coin.el) {
+    // Pickup pop: the slot is no longer frame-driven, so a CSS transition
+    // can own the node until it is respawned (spawn resets `transition`).
+    coin.el.style.transition = 'transform 160ms ease-out, opacity 160ms ease-out'
+    coin.el.style.transform = `translate3d(${coin.x}px, ${coin.y}px, 0) translate(-50%, -50%) scale(1.6)`
+    coin.el.style.opacity = '0'
+  }
   citizen.coin = null
   citizen.state = 'returning'
 }
@@ -311,6 +319,7 @@ export const coinSim = {
       coin.landX = landX
       coin.landY = landY
       if (coin.el) {
+        coin.el.style.transition = 'none'
         coin.el.style.opacity = '1'
         renderCoin(coin)
       }

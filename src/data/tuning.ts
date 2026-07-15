@@ -39,6 +39,23 @@ export const COLLECT_RADIUS = 14
 /** Greybox citizen sprites — pure asset swap at M8. Length == MAX_CITIZENS. */
 export const CITIZEN_EMOJIS = ['🧕', '👨‍🌾', '👩‍🏫', '🧑‍💼', '👵'] as const
 
+/* ---- Juice (M3) ---- */
+
+/** Pooled floating damage numbers; oldest slot is recycled on overflow. */
+export const MAX_DAMAGE_NUMBERS = 8
+export const DMG_FLOAT_MS = 650
+export const DMG_FLOAT_DISTANCE = 64
+
+/** Screen shake scales with damage dealt. */
+export const SHAKE_DURATION_MS = 180
+export const SHAKE_AMP_BASE = 2
+export const SHAKE_AMP_PER_DAMAGE = 0.2
+export const SHAKE_AMP_MAX = 12
+export const SHAKE_AMP_SUBDUE = 10
+export const SHAKE_SUBDUE_MS = 400
+
+export const COUNTER_ROLL_S = 0.35
+
 export function faceForHp(hpFraction: number, subdued: boolean): string {
   if (subdued) return FACE_SUBDUED
   const stage = FACE_STAGES.find((s) => hpFraction >= s.minHpFraction)
