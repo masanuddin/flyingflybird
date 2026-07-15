@@ -56,6 +56,18 @@ export const SHAKE_SUBDUE_MS = 400
 
 export const COUNTER_ROLL_S = 0.35
 
+/* ---- Economy (M5) ---- */
+
+/** Per-weapon leveling: each level adds flat base damage… */
+export const UPGRADE_DMG_PER_LEVEL = 2
+/** …at a geometric JP cost. */
+export const UPGRADE_COST_BASE = 10
+export const UPGRADE_COST_GROWTH = 1.5
+
+export function upgradeCost(level: number): number {
+  return Math.round(UPGRADE_COST_BASE * UPGRADE_COST_GROWTH ** level)
+}
+
 export function faceForHp(hpFraction: number, subdued: boolean): string {
   if (subdued) return FACE_SUBDUED
   const stage = FACE_STAGES.find((s) => hpFraction >= s.minHpFraction)

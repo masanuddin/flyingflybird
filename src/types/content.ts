@@ -39,4 +39,6 @@ export type Weapon = {
   damageMultiplier: number
   /** JP cost to unlock. 0 = starter. Tiers must be purchased in order. */
   cost: number
+  /** Greybox icon — pure asset swap at M8. */
+  emoji: string
 }

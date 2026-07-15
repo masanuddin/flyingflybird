@@ -1,14 +1,19 @@
 import { create } from 'zustand'
 import { LOCATIONS } from '../data/locations'
-import { STARTER_WEAPON } from '../data/weapons'
-import { BASE_TAP_DAMAGE, SUBDUED_DURATION_MS } from '../data/tuning'
+import { WEAPONS } from '../data/weapons'
+import {
+  BASE_TAP_DAMAGE,
+  SUBDUED_DURATION_MS,
+  UPGRADE_DMG_PER_LEVEL,
+  upgradeCost,
+} from '../data/tuning'
 
 export type BattlePhase = 'fighting' | 'subdued'
 
 let advanceTimer: ReturnType<typeof setTimeout> | null = null
 
 type GameState = {
-  /** Progression is strictly linear; advancing locations lands in M5. */
+  /** Progression is strictly linear — no revisiting previous locations. */
   locationIndex: number
   corruptorIndex: number
   hp: number
@@ -18,21 +23,29 @@ type GameState = {
    * ever increase this — never a tap, never a subdue.
    */
   uangRakyat: number
+  /** Spendable currency: earned per subdual, spent on weapons/punishments. */
   justicePoints: number
-  /**
-   * Money knocked loose by damage but not yet collected by a citizen.
-   * Damage releases value proportional to HP dealt, so the running total
-   * per corruptor equals `amountStolen` exactly once the floor is clear.
-   */
+  /** Highest owned tier == active weapon; tiers are bought in order. */
+  activeWeaponIndex: number
+  /** Per-weapon upgrade levels (+base damage each). */
+  weaponLevels: Record<string, number>
+  /** Money knocked loose by damage but not yet collected by a citizen. */
   outstandingValue: number
   /** Returns damage actually dealt (0 when the tap is ignored). */
   tap: () => number
-  /** Called by the sim when a citizen grabs a coin. `activeTokens` counts
-   *  live coins including the grabbed one; the last token flushes the
-   *  remainder so the books always balance. */
   collectCoin: (activeTokens: number) => void
-  /** Called by the sim once the floor is clear while subdued. */
   scheduleAdvance: () => void
+  /** Level up the active weapon. Returns true on success (for SFX). */
+  upgradeWeapon: () => boolean
+  /** Buy the next weapon tier in order. Returns true on success. */
+  buyNextWeapon: () => boolean
+}
+
+/** Damage per tap for the current weapon + level. */
+export const selectDamage = (s: Pick<GameState, 'activeWeaponIndex' | 'weaponLevels'>) => {
+  const weapon = WEAPONS[s.activeWeaponIndex]
+  const level = s.weaponLevels[weapon.id] ?? 0
+  return Math.round((BASE_TAP_DAMAGE + level * UPGRADE_DMG_PER_LEVEL) * weapon.damageMultiplier)
 }
 
 export const useGameStore = create<GameState>()((set, get) => ({
@@ -42,22 +55,30 @@ export const useGameStore = create<GameState>()((set, get) => ({
   phase: 'fighting',
   uangRakyat: 0,
   justicePoints: 0,
+  activeWeaponIndex: 0,
+  weaponLevels: {},
   outstandingValue: 0,
 
   tap: () => {
-    const { phase, hp, locationIndex, corruptorIndex, outstandingValue } = get()
-    if (phase !== 'fighting') return 0
+    const state = get()
+    if (state.phase !== 'fighting') return 0
 
-    const corruptor = LOCATIONS[locationIndex].corruptors[corruptorIndex]
-    const damage = BASE_TAP_DAMAGE * STARTER_WEAPON.damageMultiplier
-    const dealt = Math.min(hp, damage)
+    const corruptor = LOCATIONS[state.locationIndex].corruptors[state.corruptorIndex]
+    const dealt = Math.min(state.hp, selectDamage(state))
     const released = (dealt / corruptor.maxHp) * corruptor.amountStolen
-    const nextHp = hp - dealt
+    const nextHp = state.hp - dealt
 
     set({
       hp: nextHp,
-      outstandingValue: outstandingValue + released,
-      phase: nextHp === 0 ? 'subdued' : phase,
+      outstandingValue: state.outstandingValue + released,
+      ...(nextHp === 0
+        ? {
+            phase: 'subdued' as const,
+            // JP reward lands at the subdue moment. uangRakyat is NOT
+            // touched here — citizens still have to collect the floor.
+            justicePoints: state.justicePoints + corruptor.jpReward,
+          }
+        : null),
     })
     return dealt
   },
@@ -78,20 +99,55 @@ export const useGameStore = create<GameState>()((set, get) => ({
       advanceTimer = null
       const state = get()
       if (state.phase !== 'subdued') return
-      // M4: cycle within the current location's roster. M5 replaces this
-      // with linear progression (next corruptor → boss gate → next location).
+
+      // Linear progression: next mook, else next location. The boss gate
+      // slots in between at M6. After the final location the last roster
+      // cycles — the loop is endless, there is no Game Over.
       const roster = LOCATIONS[state.locationIndex].corruptors
-      const nextIndex = (state.corruptorIndex + 1) % roster.length
+      let locationIndex = state.locationIndex
+      let corruptorIndex = state.corruptorIndex + 1
+      if (corruptorIndex >= roster.length) {
+        corruptorIndex = 0
+        if (locationIndex + 1 < LOCATIONS.length) locationIndex += 1
+      }
       set({
-        corruptorIndex: nextIndex,
-        hp: roster[nextIndex].maxHp,
+        locationIndex,
+        corruptorIndex,
+        hp: LOCATIONS[locationIndex].corruptors[corruptorIndex].maxHp,
         phase: 'fighting',
         outstandingValue: 0,
       })
     }, SUBDUED_DURATION_MS)
+  },
+
+  upgradeWeapon: () => {
+    const { justicePoints, activeWeaponIndex, weaponLevels } = get()
+    const weapon = WEAPONS[activeWeaponIndex]
+    const level = weaponLevels[weapon.id] ?? 0
+    const cost = upgradeCost(level)
+    if (justicePoints < cost) return false
+    set({
+      justicePoints: justicePoints - cost,
+      weaponLevels: { ...weaponLevels, [weapon.id]: level + 1 },
+    })
+    return true
+  },
+
+  buyNextWeapon: () => {
+    const { justicePoints, activeWeaponIndex } = get()
+    const next = WEAPONS[activeWeaponIndex + 1]
+    if (!next || justicePoints < next.cost) return false
+    set({
+      justicePoints: justicePoints - next.cost,
+      activeWeaponIndex: activeWeaponIndex + 1,
+    })
+    return true
   },
 }))
 
 export const selectLocation = (s: GameState) => LOCATIONS[s.locationIndex]
 export const selectCorruptor = (s: GameState) =>
   LOCATIONS[s.locationIndex].corruptors[s.corruptorIndex]
+export const selectWeapon = (s: GameState) => WEAPONS[s.activeWeaponIndex]
+export const selectWeaponLevel = (s: GameState) =>
+  s.weaponLevels[WEAPONS[s.activeWeaponIndex].id] ?? 0

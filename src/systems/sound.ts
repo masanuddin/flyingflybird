@@ -73,4 +73,9 @@ export const sound = {
     tone(392, { dur: 0.12, type: 'sawtooth', gain: 0.2 })
     tone(523, { at: 0.1, dur: 0.22, type: 'sawtooth', gain: 0.2 })
   },
+  /** Cha-ching on any successful purchase/upgrade. */
+  purchase() {
+    tone(1047, { dur: 0.08, type: 'square', gain: 0.12 })
+    tone(1568, { at: 0.07, dur: 0.16, type: 'square', gain: 0.12 })
+  },
 }

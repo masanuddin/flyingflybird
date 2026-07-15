@@ -31,9 +31,14 @@ export function CorruptorStage() {
   return (
     <section className="relative flex flex-1 flex-col gap-2 overflow-hidden rounded-lg bg-zinc-900 p-3">
       <div className="shrink-0">
-        <div className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">
+        <motion.div
+          key={location.id}
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase"
+        >
           📍 {location.name}
-        </div>
+        </motion.div>
         <div className="flex items-baseline justify-between gap-2">
           <span className="truncate text-sm font-semibold text-zinc-200">
             {corruptor.name} · {corruptor.occupation}
