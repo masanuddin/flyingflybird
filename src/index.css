@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+
+/* Mobile hardening: rapid tapping must never trigger double-tap zoom,
+   text selection, long-press callouts, or rubber-band overscroll. */
+@layer base {
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
+  body {
+    @apply bg-zinc-950 text-zinc-100 antialiased;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #root {
+    height: 100dvh;
+    overflow: hidden;
+  }
+}
