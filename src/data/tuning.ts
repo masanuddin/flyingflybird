@@ -68,6 +68,13 @@ export function upgradeCost(level: number): number {
   return Math.round(UPGRADE_COST_BASE * UPGRADE_COST_GROWTH ** level)
 }
 
+/* ---- Boss (M6) ---- */
+
+/** Countdown for every boss fight. Fail → the boss escapes. */
+export const BOSS_TIMER_S = 20
+/** Normal corruptors to subdue before an escaped boss returns (full HP). */
+export const BOSS_RETRY_GATE = 10
+
 export function faceForHp(hpFraction: number, subdued: boolean): string {
   if (subdued) return FACE_SUBDUED
   const stage = FACE_STAGES.find((s) => hpFraction >= s.minHpFraction)

@@ -78,4 +78,9 @@ export const sound = {
     tone(1047, { dur: 0.08, type: 'square', gain: 0.12 })
     tone(1568, { at: 0.07, dur: 0.16, type: 'square', gain: 0.12 })
   },
+  /** Sad descending slide when the boss escapes. */
+  escape() {
+    tone(330, { dur: 0.15, type: 'sawtooth', gain: 0.18, to: 250 })
+    tone(250, { at: 0.16, dur: 0.3, type: 'sawtooth', gain: 0.18, to: 180 })
+  },
 }
