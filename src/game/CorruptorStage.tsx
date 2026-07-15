@@ -1,14 +1,19 @@
 import { motion } from 'motion/react'
 import { HpBar } from '../components/HpBar'
 import { selectCorruptor, useGameStore } from '../store/gameStore'
-import { faceForHp } from '../data/tuning'
+import { COINS_PER_TAP, faceForHp } from '../data/tuning'
+import { coinSim } from '../systems/coinSim'
 import { formatRupiah } from '../utils/format'
+
+function handleTap() {
+  const dealt = useGameStore.getState().tap()
+  if (dealt > 0) coinSim.spawnCoins(COINS_PER_TAP)
+}
 
 export function CorruptorStage() {
   const corruptor = useGameStore(selectCorruptor)
   const hp = useGameStore((s) => s.hp)
   const phase = useGameStore((s) => s.phase)
-  const tap = useGameStore((s) => s.tap)
 
   const subdued = phase === 'subdued'
   const face = faceForHp(hp / corruptor.maxHp, subdued)
@@ -30,13 +35,15 @@ export function CorruptorStage() {
       {/* Tap target — fills the stage so the corruptor owns ~60–70% of the play area */}
       <button
         type="button"
-        onPointerDown={tap}
+        onPointerDown={handleTap}
         className="flex flex-1 items-center justify-center rounded-lg bg-zinc-800/60 transition-transform duration-75 active:scale-95"
         aria-label={`Tindak ${corruptor.name}`}
       >
-        {/* Fixed sprite slot — final art at M8 swaps in without layout rework */}
+        {/* Fixed sprite slot — final art at M8 swaps in without layout rework.
+            Also the coin spawn anchor (chest position). */}
         <motion.div
           key={corruptor.id}
+          ref={(el) => coinSim.attachAnchor(el)}
           initial={{ opacity: 0, scale: 0.7 }}
           animate={{ opacity: 1, scale: 1 }}
           className="flex h-40 w-40 items-center justify-center"

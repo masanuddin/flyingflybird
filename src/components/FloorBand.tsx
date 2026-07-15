@@ -1,10 +1,14 @@
-/** Reserved zone: coins land + citizens collect here (signature mechanic, M2). */
+import { useEffect, useRef } from 'react'
+import { coinSim } from '../systems/coinSim'
+
+/** Floor band: coins land here, citizens collect. Bounds feed the sim. */
 export function FloorBand() {
-  return (
-    <div className="flex h-28 shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-800 bg-zinc-900/50">
-      <span className="text-[10px] font-medium tracking-widest text-zinc-600 uppercase">
-        Zona Koin & Warga
-      </span>
-    </div>
-  )
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    coinSim.attachFloor(ref.current)
+    return () => coinSim.attachFloor(null)
+  }, [])
+
+  return <div ref={ref} className="h-28 shrink-0 rounded-lg bg-zinc-900/50" />
 }
