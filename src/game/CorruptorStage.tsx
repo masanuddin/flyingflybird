@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { HpBar } from '../components/HpBar'
-import { selectCorruptor, useGameStore } from '../store/gameStore'
+import { selectCorruptor, selectLocation, useGameStore } from '../store/gameStore'
 import { COINS_PER_TAP, faceForHp } from '../data/tuning'
 import { coinSim } from '../systems/coinSim'
 import { fx } from '../systems/fx'
@@ -20,6 +20,7 @@ function handleTap() {
 }
 
 export function CorruptorStage() {
+  const location = useGameStore(selectLocation)
   const corruptor = useGameStore(selectCorruptor)
   const hp = useGameStore((s) => s.hp)
   const phase = useGameStore((s) => s.phase)
@@ -30,6 +31,9 @@ export function CorruptorStage() {
   return (
     <section className="relative flex flex-1 flex-col gap-2 overflow-hidden rounded-lg bg-zinc-900 p-3">
       <div className="shrink-0">
+        <div className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">
+          📍 {location.name}
+        </div>
         <div className="flex items-baseline justify-between gap-2">
           <span className="truncate text-sm font-semibold text-zinc-200">
             {corruptor.name} · {corruptor.occupation}

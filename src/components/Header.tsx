@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { animate } from 'motion/react'
 import { useGameStore } from '../store/gameStore'
 import { COUNTER_ROLL_S } from '../data/tuning'
-import { formatNumber, formatRupiah } from '../utils/format'
+import { formatNumber, formatRupiahCompact } from '../utils/format'
 
 export function Header() {
   const uangRakyat = useGameStore((s) => s.uangRakyat)
@@ -16,13 +16,13 @@ export function Header() {
   useLayoutEffect(() => {
     const el = valueRef.current
     if (!el || displayed.current === uangRakyat) return
-    el.textContent = formatRupiah(displayed.current)
+    el.textContent = formatRupiahCompact(displayed.current)
     const controls = animate(displayed.current, uangRakyat, {
       duration: COUNTER_ROLL_S,
       ease: 'easeOut',
       onUpdate: (v) => {
         displayed.current = v
-        el.textContent = formatRupiah(v)
+        el.textContent = formatRupiahCompact(v)
       },
     })
     return () => controls.stop()
@@ -35,7 +35,7 @@ export function Header() {
           Uang Rakyat
         </div>
         <div ref={valueRef} className="text-2xl font-bold text-green-400 tabular-nums">
-          {formatRupiah(uangRakyat)}
+          {formatRupiahCompact(uangRakyat)}
         </div>
       </div>
       <div className="text-right">

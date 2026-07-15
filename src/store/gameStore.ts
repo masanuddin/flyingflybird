@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { GREYBOX_CORRUPTORS } from '../data/corruptors'
+import { LOCATIONS } from '../data/locations'
 import { STARTER_WEAPON } from '../data/weapons'
 import { BASE_TAP_DAMAGE, SUBDUED_DURATION_MS } from '../data/tuning'
 
@@ -8,6 +8,8 @@ export type BattlePhase = 'fighting' | 'subdued'
 let advanceTimer: ReturnType<typeof setTimeout> | null = null
 
 type GameState = {
+  /** Progression is strictly linear; advancing locations lands in M5. */
+  locationIndex: number
   corruptorIndex: number
   hp: number
   phase: BattlePhase
@@ -34,18 +36,19 @@ type GameState = {
 }
 
 export const useGameStore = create<GameState>()((set, get) => ({
+  locationIndex: 0,
   corruptorIndex: 0,
-  hp: GREYBOX_CORRUPTORS[0].maxHp,
+  hp: LOCATIONS[0].corruptors[0].maxHp,
   phase: 'fighting',
   uangRakyat: 0,
   justicePoints: 0,
   outstandingValue: 0,
 
   tap: () => {
-    const { phase, hp, corruptorIndex, outstandingValue } = get()
+    const { phase, hp, locationIndex, corruptorIndex, outstandingValue } = get()
     if (phase !== 'fighting') return 0
 
-    const corruptor = GREYBOX_CORRUPTORS[corruptorIndex]
+    const corruptor = LOCATIONS[locationIndex].corruptors[corruptorIndex]
     const damage = BASE_TAP_DAMAGE * STARTER_WEAPON.damageMultiplier
     const dealt = Math.min(hp, damage)
     const released = (dealt / corruptor.maxHp) * corruptor.amountStolen
@@ -75,10 +78,13 @@ export const useGameStore = create<GameState>()((set, get) => ({
       advanceTimer = null
       const state = get()
       if (state.phase !== 'subdued') return
-      const nextIndex = (state.corruptorIndex + 1) % GREYBOX_CORRUPTORS.length
+      // M4: cycle within the current location's roster. M5 replaces this
+      // with linear progression (next corruptor → boss gate → next location).
+      const roster = LOCATIONS[state.locationIndex].corruptors
+      const nextIndex = (state.corruptorIndex + 1) % roster.length
       set({
         corruptorIndex: nextIndex,
-        hp: GREYBOX_CORRUPTORS[nextIndex].maxHp,
+        hp: roster[nextIndex].maxHp,
         phase: 'fighting',
         outstandingValue: 0,
       })
@@ -86,4 +92,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
 }))
 
-export const selectCorruptor = (s: GameState) => GREYBOX_CORRUPTORS[s.corruptorIndex]
+export const selectLocation = (s: GameState) => LOCATIONS[s.locationIndex]
+export const selectCorruptor = (s: GameState) =>
+  LOCATIONS[s.locationIndex].corruptors[s.corruptorIndex]
