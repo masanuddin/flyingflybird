@@ -1,3 +1,4 @@
+
 # CLAUDE.md — Whack The Corruptor
 
 Satirical anti-corruption mobile web clicker. Garuda Hacks 7.0, Safety track, target award: **Most Unique Idea** (NOT Best Technical). ~2-day build, 4-person team. Small polished loop > big janky game.
