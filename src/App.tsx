@@ -5,6 +5,9 @@ import { EntityLayer } from './game/EntityLayer'
 import { FloorBand } from './components/FloorBand'
 import { BottomBar } from './components/BottomBar'
 import { NavBar } from './components/NavBar'
+import { SenjataSheet } from './pages/SenjataSheet'
+import { HukumanSheet } from './pages/HukumanSheet'
+import { SettingsSheet } from './pages/SettingsSheet'
 
 export default function App() {
   return (
@@ -23,6 +26,9 @@ export default function App() {
       </div>
       <BottomBar />
       <NavBar />
+      <SenjataSheet />
+      <HukumanSheet />
+      <SettingsSheet />
     </div>
   )
 }

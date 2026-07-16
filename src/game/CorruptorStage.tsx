@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { HpBar } from '../components/HpBar'
 import { BossButton } from './BossButton'
 import { BossTimer } from './BossTimer'
@@ -54,6 +54,18 @@ export function CorruptorStage() {
       return () => clearTimeout(t)
     }
   }, [bossState])
+
+  // Case card: non-blocking slide-in per new case, auto-dismiss ≤2s.
+  const [visibleCase, setVisibleCase] = useState<string | null>(null)
+  const caseShownFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (phase !== 'fighting' && phase !== 'bossFight') return
+    if (caseShownFor.current === corruptor.id) return
+    caseShownFor.current = corruptor.id
+    setVisibleCase(corruptor.id)
+    const t = setTimeout(() => setVisibleCase(null), 2000)
+    return () => clearTimeout(t)
+  }, [corruptor.id, phase])
 
   return (
     <section className="relative flex flex-1 flex-col gap-2 overflow-hidden rounded-lg bg-zinc-900 p-3">
@@ -157,6 +169,25 @@ export function CorruptorStage() {
           </span>
         </motion.div>
       )}
+
+      <AnimatePresence>
+        {visibleCase && (
+          <motion.div
+            key={visibleCase}
+            initial={{ opacity: 0, y: -14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="pointer-events-none absolute inset-x-2 top-20 rounded-lg border border-zinc-700 bg-zinc-950/95 p-2.5"
+          >
+            <div className="truncate text-xs font-semibold text-zinc-200">
+              📋 {corruptor.caseDescription}
+            </div>
+            <div className="text-[11px] text-amber-400 tabular-nums">
+              Kerugian negara: {formatRupiah(corruptor.amountStolen)}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }

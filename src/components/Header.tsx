@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { animate } from 'motion/react'
 import { useGameStore } from '../store/gameStore'
+import { useUiStore } from '../store/uiStore'
 import { COUNTER_ROLL_S } from '../data/tuning'
 import { formatNumber, formatRupiahCompact } from '../utils/format'
 
@@ -38,13 +39,23 @@ export function Header() {
           {formatRupiahCompact(uangRakyat)}
         </div>
       </div>
-      <div className="text-right">
-        <div className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">
-          Poin Keadilan
+      <div className="flex items-center gap-2">
+        <div className="text-right">
+          <div className="text-[10px] font-medium tracking-widest text-zinc-500 uppercase">
+            Poin Keadilan
+          </div>
+          <div className="text-sm font-semibold text-amber-400 tabular-nums">
+            {formatNumber(justicePoints)} JP
+          </div>
         </div>
-        <div className="text-sm font-semibold text-amber-400 tabular-nums">
-          {formatNumber(justicePoints)} JP
-        </div>
+        <button
+          type="button"
+          onPointerDown={() => useUiStore.getState().openSheet('settings')}
+          aria-label="Pengaturan"
+          className="rounded-lg bg-zinc-800 p-1.5 text-base leading-none"
+        >
+          ⚙️
+        </button>
       </div>
     </header>
   )

@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 import { LOCATIONS } from '../data/locations'
 import { WEAPONS } from '../data/weapons'
+import { PUNISHMENTS } from '../data/punishments'
+import { loadSave, writeSave } from '../utils/save'
+import { sound } from '../systems/sound'
 import {
   BASE_TAP_DAMAGE,
   BOSS_RETRY_GATE,
@@ -45,6 +48,8 @@ type GameState = {
   activeWeaponIndex: number
   /** Per-weapon upgrade levels (+base damage each). */
   weaponLevels: Record<string, number>
+  unlockedPunishments: string[]
+  muted: boolean
   /** Money knocked loose by damage but not yet collected by a citizen. */
   outstandingValue: number
   /** Returns damage actually dealt (0 when the tap is ignored). */
@@ -55,6 +60,8 @@ type GameState = {
   bossTimeout: () => void
   upgradeWeapon: () => boolean
   buyNextWeapon: () => boolean
+  unlockPunishment: (id: string) => boolean
+  toggleMute: () => void
 }
 
 /** Damage per tap for the current weapon + level. */
@@ -64,19 +71,53 @@ export const selectDamage = (s: Pick<GameState, 'activeWeaponIndex' | 'weaponLev
   return Math.round((BASE_TAP_DAMAGE + level * UPGRADE_DMG_PER_LEVEL) * weapon.damageMultiplier)
 }
 
+/**
+ * Checkpoint save. Runtime battle state is never persisted; a saved boss
+ * fight resumes as bossReady. `bossOutstandingAdjust` subtracts released-
+ * but-uncollected boss value from the snapshot so a reload can never make
+ * the boss's books come up short.
+ */
+function persistSave(state: GameState, bossOutstandingAdjust = 0) {
+  writeSave({
+    uangRakyat: state.uangRakyat,
+    justicePoints: state.justicePoints,
+    activeWeaponIndex: state.activeWeaponIndex,
+    weaponLevels: state.weaponLevels,
+    unlockedPunishments: state.unlockedPunishments,
+    locationIndex: state.locationIndex,
+    corruptorIndex: state.corruptorIndex,
+    bossState: state.bossState === 'active' ? 'available' : state.bossState,
+    gateRemaining: state.gateRemaining,
+    bossReleasedValue: Math.max(0, state.bossReleasedValue - bossOutstandingAdjust),
+    muted: state.muted,
+  })
+}
+
+const saved = loadSave()
+const initialLocation = saved?.locationIndex ?? 0
+const initialCorruptor = saved?.corruptorIndex ?? 0
+const initialBossState: BossState = saved?.bossState ?? 'locked'
+const initialPhase: BattlePhase = initialBossState === 'available' ? 'bossReady' : 'fighting'
+const initialHp =
+  initialPhase === 'bossReady'
+    ? LOCATIONS[initialLocation].boss.maxHp
+    : LOCATIONS[initialLocation].corruptors[initialCorruptor].maxHp
+
 export const useGameStore = create<GameState>()((set, get) => ({
-  locationIndex: 0,
-  corruptorIndex: 0,
-  hp: LOCATIONS[0].corruptors[0].maxHp,
-  phase: 'fighting',
-  bossState: 'locked',
-  gateRemaining: 0,
+  locationIndex: initialLocation,
+  corruptorIndex: initialCorruptor,
+  hp: initialHp,
+  phase: initialPhase,
+  bossState: initialBossState,
+  gateRemaining: saved?.gateRemaining ?? 0,
   bossDeadline: null,
-  bossReleasedValue: 0,
-  uangRakyat: 0,
-  justicePoints: 0,
-  activeWeaponIndex: 0,
-  weaponLevels: {},
+  bossReleasedValue: saved?.bossReleasedValue ?? 0,
+  uangRakyat: saved?.uangRakyat ?? 0,
+  justicePoints: saved?.justicePoints ?? 0,
+  activeWeaponIndex: saved?.activeWeaponIndex ?? 0,
+  weaponLevels: saved?.weaponLevels ?? {},
+  unlockedPunishments: saved?.unlockedPunishments ?? [],
+  muted: saved?.muted ?? false,
   outstandingValue: 0,
 
   tap: () => {
@@ -164,6 +205,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
           bossReleasedValue: 0,
           outstandingValue: 0,
         })
+        persistSave(get())
         return
       }
 
@@ -174,6 +216,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       if (next >= location.corruptors.length && bossState === 'locked') bossState = 'available'
       if (bossState === 'available') {
         set({ phase: 'bossReady', bossState, hp: location.boss.maxHp, outstandingValue: 0 })
+        persistSave(get())
         return
       }
       if (next >= location.corruptors.length) next = 0
@@ -184,6 +227,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
         bossState,
         outstandingValue: 0,
       })
+      persistSave(get())
     }, SUBDUED_DURATION_MS)
   },
 
@@ -212,32 +256,65 @@ export const useGameStore = create<GameState>()((set, get) => ({
       corruptorIndex: 0,
       hp: roster[0].maxHp,
     })
+    // Coins still on the floor are boss value; the snapshot must treat
+    // them as not-yet-released so a reload can still recover them.
+    persistSave(get(), get().outstandingValue)
   },
 
   upgradeWeapon: () => {
-    const { justicePoints, activeWeaponIndex, weaponLevels } = get()
-    const weapon = WEAPONS[activeWeaponIndex]
-    const level = weaponLevels[weapon.id] ?? 0
+    const state = get()
+    const weapon = WEAPONS[state.activeWeaponIndex]
+    const level = state.weaponLevels[weapon.id] ?? 0
     const cost = upgradeCost(level)
-    if (justicePoints < cost) return false
+    if (state.justicePoints < cost) return false
     set({
-      justicePoints: justicePoints - cost,
-      weaponLevels: { ...weaponLevels, [weapon.id]: level + 1 },
+      justicePoints: state.justicePoints - cost,
+      weaponLevels: { ...state.weaponLevels, [weapon.id]: level + 1 },
     })
+    persistSave(get(), get().phase === 'bossFight' ? get().outstandingValue : 0)
     return true
   },
 
   buyNextWeapon: () => {
-    const { justicePoints, activeWeaponIndex } = get()
-    const next = WEAPONS[activeWeaponIndex + 1]
-    if (!next || justicePoints < next.cost) return false
+    const state = get()
+    const next = WEAPONS[state.activeWeaponIndex + 1]
+    if (!next || state.justicePoints < next.cost) return false
     set({
-      justicePoints: justicePoints - next.cost,
-      activeWeaponIndex: activeWeaponIndex + 1,
+      justicePoints: state.justicePoints - next.cost,
+      activeWeaponIndex: state.activeWeaponIndex + 1,
     })
+    persistSave(get(), get().phase === 'bossFight' ? get().outstandingValue : 0)
     return true
   },
+
+  unlockPunishment: (id) => {
+    const state = get()
+    const punishment = PUNISHMENTS.find((p) => p.id === id)
+    if (
+      !punishment ||
+      state.unlockedPunishments.includes(id) ||
+      state.justicePoints < punishment.cost
+    ) {
+      return false
+    }
+    set({
+      justicePoints: state.justicePoints - punishment.cost,
+      unlockedPunishments: [...state.unlockedPunishments, id],
+    })
+    persistSave(get(), get().phase === 'bossFight' ? get().outstandingValue : 0)
+    return true
+  },
+
+  toggleMute: () => {
+    const muted = !get().muted
+    sound.setMuted(muted)
+    set({ muted })
+    persistSave(get(), get().phase === 'bossFight' ? get().outstandingValue : 0)
+  },
 }))
+
+// Apply the persisted mute preference before any SFX plays.
+sound.setMuted(saved?.muted ?? false)
 
 export const selectLocation = (s: GameState) => LOCATIONS[s.locationIndex]
 export const selectCorruptor = (s: GameState) => {
